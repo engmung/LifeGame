@@ -159,20 +159,7 @@ export const SettingsDialog = () => {
         mbti: localSettings.mbti || ''
       };
       
-      const response = await fetch('http://localhost:8000/character/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSend)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save settings');
-      }
-
-      const data = await response.json();
+      const data = await api.createCharacter(dataToSend);
       console.log('Settings saved successfully:', data);
       updateSettings(localSettings);
     } catch (error) {
