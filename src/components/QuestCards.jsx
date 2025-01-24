@@ -1,7 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Book } from 'lucide-react';
 import { useQuests, useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 export const QuestCard = ({ quest, onClick }) => {
   const { inProgressQuest } = useQuests();
@@ -87,28 +89,25 @@ export const CreateQuestButton = () => {
 
       if (!confirm('현재 퀘스트를 모두 새로운 퀘스트로 교체하시겠습니까?')) return;
 
-      // 서버에서 퀘스트 조회
-      const response = await fetch(`http://localhost:8000/quests/${encodeURIComponent(settings.characterName)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch quests');
-      }
-      
-      const result = await response.json();
+      const result = await api.getQuests(settings.characterName);
       if (result.status === 'success') {
         // 기존 퀘스트 데이터 구조에 맞게 변환
         const newQuests = result.data.map(quest => ({
           id: quest.id,
           title: quest.title,
           type: quest.type,
-          description: quest.description
+          description: quest.description,
+          difficulty: quest.difficulty,
+          exp: quest.exp,
+          gold: quest.gold
         }));
+        
         updateQuests(newQuests);
-      } else {
-        throw new Error(result.message || 'Failed to load quests');
+        alert('새로운 퀘스트가 로드되었습니다.');
       }
     } catch (error) {
-      console.error('Error loading quests:', error);
-      alert('퀘스트를 불러오는데 실패했습니다.');
+      console.error('Error fetching quests:', error);
+      alert('퀘스트 불러오기에 실패했습니다.');
     }
   };
 
@@ -116,9 +115,11 @@ export const CreateQuestButton = () => {
     <Button 
       onClick={handleCreateQuest}
       size="lg"
+      variant="outline"
       className="w-full"
     >
-      퀘스트 생성하기
+      <Book className="mr-2 h-4 w-4" />
+      퀘스트 불러오기
     </Button>
   );
 };

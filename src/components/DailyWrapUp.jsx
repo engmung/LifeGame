@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Book, Loader2 } from 'lucide-react';
 import { useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 // 타임라인 아이템 컴포넌트
 const TimelineItem = ({ activity }) => (
@@ -50,22 +51,7 @@ export const DailyWrapUpDialog = () => {
     setError(null);
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/daily/wrap-up/${encodeURIComponent(settings.characterName)}`, 
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ date: selectedDate })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('하루 마무리 생성에 실패했습니다.');
-      }
-
-      const data = await response.json();
+      const data = await api.getDailyWrapUp(settings.characterName, selectedDate);
       setActivities(data.activities);
       
       if (data.notionPageUrl) {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Settings, User, Play, Pause, CheckCircle, History, Book } from 'lucide-react';
 import { useQuests, useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 export const QuestTimer = ({ onComplete, onCancel, questId }) => {
   const [timerState, setTimerState] = useState(() => {
@@ -482,12 +483,7 @@ export const GenerateQuestButton = () => {
 
       if (!confirm('새로운 퀘스트를 생성하시겠습니까? (개발자 전용)')) return;
 
-      // 서버에서 퀘스트 생성
-      const response = await fetch(`http://localhost:8000/quests/generate/${encodeURIComponent(settings.characterName)}`);
-      if (!response.ok) {
-        throw new Error('Failed to generate quests');
-      }
-      
+      await api.generateQuests(settings.characterName);
       alert('퀘스트가 생성되었습니다. 불러오기 버튼을 눌러주세요.');
       
     } catch (error) {
