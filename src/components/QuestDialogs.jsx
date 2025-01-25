@@ -381,43 +381,17 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
       }
 
       const questData = {
-        id: quest.id,
-        title: quest.title,
-        type: quest.type,
-        description: quest.description,
-        timerDetails: timerData,
+        quest,
+        timerData,
         review
       };
 
-      console.log('Submitting quest data:', questData);
-
-      // 서버에 활동 로그 저장
-      const response = await fetch(`http://localhost:8000/quests/complete/${settings.characterName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(questData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save activity log');
-      }
-
-      console.log('Quest completed successfully');
-      completeQuest(questData, review);
-      setIsCompleted(false);
-      setReview('');
-      setTimerData(null);
-      // 타이머 상태 정리
-      if (quest?.id) {
-        localStorage.removeItem(`timer_${quest.id}`);
-      }
+      await api.completeQuest(settings.characterName, questData);
+      completeQuest(quest, review);
       onOpenChange(false);
-
     } catch (error) {
       console.error('Error completing quest:', error);
-      alert('활동 로그 저장에 실패했습니다.');
+      alert('퀘스트 완료에 실패했습니다.');
     }
   };
 
