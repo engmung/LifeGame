@@ -102,6 +102,8 @@ export const UserSettingsProvider = ({ children }) => {
     notionPageUrl: '',
     characterName: '',
     mbti: '',
+    goals: '',
+    preferences: ''
   });
 
   useEffect(() => {

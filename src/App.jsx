@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { QuestProvider, UserSettingsProvider, useQuests } from './components/QuestContext';
 import { DailyWrapUpDialog } from './components/DailyWrapUp';
 import { 
-  SettingsDialog, 
-  MBTIDialog, 
   QuestHistoryDialog,
   QuestDetailDialog 
 } from './components/QuestDialogs';
@@ -13,6 +11,8 @@ import {
   CreateQuestButton ,
   GenerateQuestButton
 } from './components/QuestCards';
+import { CustomQuestCard } from './components/CustomQuestCard';
+import { CharacterSettingsDialog } from './components/CharacterSettingsDialog';
 
 // MainContent component to use hooks
 const MainContent = () => {
@@ -45,6 +45,7 @@ const MainContent = () => {
             />
           ))
         )}
+        <CustomQuestCard />
       </div>
 
       {selectedQuest && (
@@ -70,8 +71,7 @@ const App = () => {
       <QuestProvider>
         <div className="min-h-screen bg-gray-100 p-4">
           <div className="fixed top-4 right-4 flex gap-2">
-            <SettingsDialog />
-            <MBTIDialog />
+            <CharacterSettingsDialog />
             <QuestHistoryDialog />
             <DailyWrapUpDialog />
           </div>

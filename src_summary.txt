@@ -25,6 +25,7 @@ import {
   CreateQuestButton ,
   GenerateQuestButton
 } from './components/QuestCards';
+import { CustomQuestCard } from './components/CustomQuestCard';
 
 // MainContent component to use hooks
 const MainContent = () => {
@@ -57,6 +58,7 @@ const MainContent = () => {
             />
           ))
         )}
+        <CustomQuestCard />
       </div>
 
       {selectedQuest && (
@@ -116,6 +118,171 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 Directory: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ui
 
 
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CustomQuestCard.jsx
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus } from 'lucide-react';
+import { QuestTimer } from './QuestDialogs';
+import { useUserSettings } from './QuestContext';
+
+export const CustomQuestCard = () => {
+  // States
+  const [isOpen, setIsOpen] = useState(false);
+  const [activityName, setActivityName] = useState(() => {
+    return localStorage.getItem('currentActivityName') || '';
+  });
+  const [isStarted, setIsStarted] = useState(() => {
+    return localStorage.getItem('currentActivityName') ? true : false;
+  });
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [review, setReview] = useState('');
+  const [timerData, setTimerData] = useState(null);
+  const { settings } = useUserSettings();
+
+  // Open dialog when activity is in progress
+  useEffect(() => {
+    if (isStarted) {
+      setIsOpen(true);
+    }
+  }, [isStarted]);
+
+  const resetState = () => {
+    setIsStarted(false);
+    setIsCompleted(false);
+    setReview('');
+    setTimerData(null);
+    localStorage.removeItem('timer_custom');
+    localStorage.removeItem('currentActivityName');
+    if (!isOpen) {
+      setActivityName('');
+    }
+  };
+
+  const handleStartQuest = () => {
+    if (!activityName.trim()) {
+      alert('활동명을 입력해주세요.');
+      return;
+    }
+    localStorage.setItem('currentActivityName', activityName);
+    setIsStarted(true);
+  };
+
+  const handleComplete = async (timerData) => {
+    setIsCompleted(true);
+    setTimerData(timerData);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/activities/log/${settings.characterName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activityName: activityName,
+          timerDetails: timerData,
+          review: review
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to log activity');
+      
+      alert('활동이 기록되었습니다.');
+      setIsOpen(false);
+      resetState();
+    } catch (error) {
+      console.error('Error logging activity:', error);
+      alert('활동 기록에 실패했습니다.');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsOpen(false);
+    resetState();
+  };
+
+  return (
+    <>
+      <Card 
+        className={`h-full cursor-pointer ${isStarted ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+        onClick={() => setIsOpen(true)}
+      >
+        <CardContent className="p-4 flex flex-col items-center justify-center min-h-[200px]">
+          {isStarted ? (
+            <>
+              <h3 className="font-semibold">{activityName}</h3>
+              <p className="text-sm text-blue-600 mt-2">진행 중...</p>
+            </>
+          ) : (
+            <>
+              <Plus className="w-8 h-8 mb-2" />
+              <h3 className="font-semibold">커스텀 퀘스트</h3>
+              <p className="text-sm text-gray-600">나만의 활동 기록하기</p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open && !isCompleted && isStarted) {
+          setIsOpen(true);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isStarted ? activityName : '커스텀 활동'}</DialogTitle>
+          </DialogHeader>
+          
+          {isCompleted ? (
+            <div className="grid gap-4">
+              <label className="font-medium">활동 후기</label>
+              <textarea 
+                className="min-h-[100px] p-2 border rounded"
+                placeholder="활동에 대한 후기를 작성해주세요..."
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleCancel}>
+                  취소
+                </Button>
+                <Button onClick={handleSubmit}>
+                  완료
+                </Button>
+              </div>
+            </div>
+          ) : !isStarted ? (
+            <div className="grid gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">활동명</label>
+                <input
+                  type="text"
+                  className="w-full border rounded p-2"
+                  value={activityName}
+                  onChange={(e) => setActivityName(e.target.value)}
+                  placeholder="활동명을 입력하세요"
+                />
+              </div>
+              <Button onClick={handleStartQuest}>시작하기</Button>
+            </div>
+          ) : (
+            <QuestTimer
+              onComplete={handleComplete}
+              onCancel={handleCancel}
+              questId="custom"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+export default CustomQuestCard;
+
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\DailyWrapUp.jsx
 
 import React, { useState, useEffect } from 'react';
@@ -124,6 +291,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Book, Loader2 } from 'lucide-react';
 import { useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 // 타임라인 아이템 컴포넌트
 const TimelineItem = ({ activity }) => (
@@ -170,22 +338,7 @@ export const DailyWrapUpDialog = () => {
     setError(null);
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/daily/wrap-up/${encodeURIComponent(settings.characterName)}`, 
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ date: selectedDate })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('하루 마무리 생성에 실패했습니다.');
-      }
-
-      const data = await response.json();
+      const data = await api.getDailyWrapUp(settings.characterName, selectedDate);
       setActivities(data.activities);
       
       if (data.notionPageUrl) {
@@ -268,7 +421,9 @@ File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\componen
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Book } from 'lucide-react';
 import { useQuests, useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 export const QuestCard = ({ quest, onClick }) => {
   const { inProgressQuest } = useQuests();
@@ -315,12 +470,7 @@ export const GenerateQuestButton = () => {
 
       if (!confirm('새로운 퀘스트를 생성하시겠습니까? (개발자 전용)')) return;
 
-      // 서버에서 퀘스트 생성
-      const response = await fetch(`http://localhost:8000/quests/generate/${encodeURIComponent(settings.characterName)}`);
-      if (!response.ok) {
-        throw new Error('Failed to generate quests');
-      }
-      
+      await api.generateQuests(settings.characterName);
       alert('퀘스트가 생성되었습니다. 불러오기 버튼을 눌러주세요.');
       
     } catch (error) {
@@ -354,28 +504,25 @@ export const CreateQuestButton = () => {
 
       if (!confirm('현재 퀘스트를 모두 새로운 퀘스트로 교체하시겠습니까?')) return;
 
-      // 서버에서 퀘스트 조회
-      const response = await fetch(`http://localhost:8000/quests/${encodeURIComponent(settings.characterName)}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch quests');
-      }
-      
-      const result = await response.json();
+      const result = await api.getQuests(settings.characterName);
       if (result.status === 'success') {
         // 기존 퀘스트 데이터 구조에 맞게 변환
         const newQuests = result.data.map(quest => ({
           id: quest.id,
           title: quest.title,
           type: quest.type,
-          description: quest.description
+          description: quest.description,
+          difficulty: quest.difficulty,
+          exp: quest.exp,
+          gold: quest.gold
         }));
+        
         updateQuests(newQuests);
-      } else {
-        throw new Error(result.message || 'Failed to load quests');
+        alert('새로운 퀘스트가 로드되었습니다.');
       }
     } catch (error) {
-      console.error('Error loading quests:', error);
-      alert('퀘스트를 불러오는데 실패했습니다.');
+      console.error('Error fetching quests:', error);
+      alert('퀘스트 불러오기에 실패했습니다.');
     }
   };
 
@@ -383,9 +530,11 @@ export const CreateQuestButton = () => {
     <Button 
       onClick={handleCreateQuest}
       size="lg"
+      variant="outline"
       className="w-full"
     >
-      퀘스트 생성하기
+      <Book className="mr-2 h-4 w-4" />
+      퀘스트 불러오기
     </Button>
   );
 };
@@ -526,6 +675,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Settings, User, Play, Pause, CheckCircle, History, Book } from 'lucide-react';
 import { useQuests, useUserSettings } from './QuestContext';
+import { api } from '@/lib/api';
 
 export const QuestTimer = ({ onComplete, onCancel, questId }) => {
   const [timerState, setTimerState] = useState(() => {
@@ -680,20 +830,7 @@ export const SettingsDialog = () => {
         mbti: localSettings.mbti || ''
       };
       
-      const response = await fetch('http://localhost:8000/character/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSend)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save settings');
-      }
-
-      const data = await response.json();
+      const data = await api.createCharacter(dataToSend);
       console.log('Settings saved successfully:', data);
       updateSettings(localSettings);
     } catch (error) {
@@ -876,11 +1013,11 @@ export const QuestHistoryDialog = () => {
 };
 
 export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
-  const { completeQuest, startQuest, cancelQuest } = useQuests();
-  const { settings } = useUserSettings();
   const [isCompleted, setIsCompleted] = useState(false);
   const [review, setReview] = useState('');
   const [timerData, setTimerData] = useState(null);
+  const { completeQuest, startQuest, cancelQuest } = useQuests();
+  const { settings } = useUserSettings();
 
   useEffect(() => {
     if (open) {
@@ -889,7 +1026,6 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
   }, [open]);
 
   const handleTimerComplete = (finalTimerState) => {
-    console.log('Timer completed, final state:', finalTimerState);
     setTimerData(finalTimerState);
     setIsCompleted(true);
   };
@@ -899,7 +1035,6 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
     setIsCompleted(false);
     setReview('');
     setTimerData(null);
-    // 타이머 상태 초기화
     if (quest?.id) {
       localStorage.removeItem(`timer_${quest.id}`);
     }
@@ -915,43 +1050,17 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
       }
 
       const questData = {
-        id: quest.id,
-        title: quest.title,
-        type: quest.type,
-        description: quest.description,
+        quest,
         timerDetails: timerData,
         review
       };
 
-      console.log('Submitting quest data:', questData);
-
-      // 서버에 활동 로그 저장
-      const response = await fetch(`http://localhost:8000/quests/complete/${settings.characterName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(questData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save activity log');
-      }
-
-      console.log('Quest completed successfully');
-      completeQuest(questData, review);
-      setIsCompleted(false);
-      setReview('');
-      setTimerData(null);
-      // 타이머 상태 정리
-      if (quest?.id) {
-        localStorage.removeItem(`timer_${quest.id}`);
-      }
+      await api.completeQuest(settings.characterName, questData);
+      completeQuest(quest, review);
       onOpenChange(false);
-
     } catch (error) {
       console.error('Error completing quest:', error);
-      alert('활동 로그 저장에 실패했습니다.');
+      alert('퀘스트 완료에 실패했습니다.');
     }
   };
 
@@ -962,13 +1071,7 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
           <DialogTitle>{quest.title}</DialogTitle>
         </DialogHeader>
         
-        {!isCompleted ? (
-          <QuestTimer 
-            onComplete={handleTimerComplete} 
-            onCancel={handleCancel} 
-            questId={quest.id}
-          />
-        ) : (
+        {isCompleted ? (
           <div className="grid gap-4">
             <label className="font-medium">Quest Review</label>
             <textarea 
@@ -986,6 +1089,18 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
               </Button>
             </div>
           </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <div className="text-sm text-gray-600 mb-2">{quest.type}</div>
+              <p className="text-gray-700">{quest.description}</p>
+            </div>
+            <QuestTimer 
+              onComplete={handleTimerComplete} 
+              onCancel={handleCancel} 
+              questId={quest.id}
+            />
+          </>
         )}
       </DialogContent>
     </Dialog>
@@ -1004,12 +1119,7 @@ export const GenerateQuestButton = () => {
 
       if (!confirm('새로운 퀘스트를 생성하시겠습니까? (개발자 전용)')) return;
 
-      // 서버에서 퀘스트 생성
-      const response = await fetch(`http://localhost:8000/quests/generate/${encodeURIComponent(settings.characterName)}`);
-      if (!response.ok) {
-        throw new Error('Failed to generate quests');
-      }
-      
+      await api.generateQuests(settings.characterName);
       alert('퀘스트가 생성되었습니다. 불러오기 버튼을 눌러주세요.');
       
     } catch (error) {
@@ -1237,6 +1347,55 @@ export {
   DialogTitle,
   DialogDescription,
 }
+
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\lib\api.js
+
+const API_URL = import.meta.env.VITE_API_URL;
+console.log('Current API URL:', API_URL);
+
+export const api = {
+  generateQuests: async (characterName) => {
+    const response = await fetch(`${API_URL}/quests/generate/${encodeURIComponent(characterName)}`);
+    if (!response.ok) throw new Error('Failed to generate quests');
+    return response.json();
+  },
+
+  getQuests: async (characterName) => {
+    const response = await fetch(`${API_URL}/quests/${encodeURIComponent(characterName)}`);
+    if (!response.ok) throw new Error('Failed to fetch quests');
+    return response.json();
+  },
+
+  completeQuest: async (characterName, questData) => {
+    const response = await fetch(`${API_URL}/quests/complete/${encodeURIComponent(characterName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(questData)
+    });
+    if (!response.ok) throw new Error('Failed to complete quest');
+    return response.json();
+  },
+
+  createCharacter: async (settings) => {
+    const response = await fetch(`${API_URL}/character/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    if (!response.ok) throw new Error('Failed to create character');
+    return response.json();
+  },
+
+  getDailyWrapUp: async (characterName, date) => {
+    const response = await fetch(`${API_URL}/daily/wrap-up/${encodeURIComponent(characterName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date })
+    });
+    if (!response.ok) throw new Error('Failed to get daily wrap-up');
+    return response.json();
+  }
+};
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\lib\utils.js
 

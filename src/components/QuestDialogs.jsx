@@ -142,118 +142,6 @@ export const QuestTimer = ({ onComplete, onCancel, questId }) => {
   );
 };
 
-export const SettingsDialog = () => {
-  const { settings, updateSettings } = useUserSettings();
-  const [localSettings, setLocalSettings] = useState(settings);
-
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
-
-  const handleSave = async () => {
-    try {
-      const dataToSend = {
-        characterName: localSettings.characterName,
-        notionApiKey: localSettings.notionApiKey,
-        notionPageUrl: localSettings.notionPageUrl,
-        mbti: localSettings.mbti || ''
-      };
-      
-      const data = await api.createCharacter(dataToSend);
-      console.log('Settings saved successfully:', data);
-      updateSettings(localSettings);
-    } catch (error) {
-      console.error('Detailed error:', error);
-      alert('Failed to save settings. Please check your Notion API key and URL.');
-    }
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 right-4">
-          <Settings className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <label>Character Name (ID)</label>
-            <input 
-              type="text" 
-              className="border p-2 rounded"
-              value={localSettings.characterName}
-              onChange={(e) => setLocalSettings({ ...localSettings, characterName: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-2">
-            <label>Notion API Key</label>
-            <input 
-              type="password" 
-              className="border p-2 rounded"
-              value={localSettings.notionApiKey}
-              onChange={(e) => setLocalSettings({ ...localSettings, notionApiKey: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-2">
-            <label>Notion Page URL</label>
-            <input 
-              type="text" 
-              className="border p-2 rounded"
-              value={localSettings.notionPageUrl}
-              onChange={(e) => setLocalSettings({ ...localSettings, notionPageUrl: e.target.value })}
-            />
-          </div>
-          <Button onClick={handleSave}>Save Settings</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export const MBTIDialog = () => {
-  const { settings, updateSettings } = useUserSettings();
-  const MBTI_TYPES = [
-    'INTJ', 'INTP', 'ENTJ', 'ENTP',
-    'INFJ', 'INFP', 'ENFJ', 'ENFP',
-    'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
-    'ISTP', 'ISFP', 'ESTP', 'ESFP'
-  ];
-  
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 left-4">
-          <User className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Character Settings</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <label>MBTI</label>
-            <select 
-              className="border p-2 rounded"
-              value={settings.mbti}
-              onChange={(e) => updateSettings({ mbti: e.target.value })}
-            >
-              <option value="">Select MBTI</option>
-              {MBTI_TYPES.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 export const QuestHistoryDialog = () => {
   const { completedQuests, deleteCompletedQuest } = useQuests();
 
@@ -342,11 +230,11 @@ export const QuestHistoryDialog = () => {
 };
 
 export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
-  const { completeQuest, startQuest, cancelQuest } = useQuests();
-  const { settings } = useUserSettings();
   const [isCompleted, setIsCompleted] = useState(false);
   const [review, setReview] = useState('');
   const [timerData, setTimerData] = useState(null);
+  const { completeQuest, startQuest, cancelQuest } = useQuests();
+  const { settings } = useUserSettings();
 
   useEffect(() => {
     if (open) {
@@ -355,7 +243,6 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
   }, [open]);
 
   const handleTimerComplete = (finalTimerState) => {
-    console.log('Timer completed, final state:', finalTimerState);
     setTimerData(finalTimerState);
     setIsCompleted(true);
   };
@@ -365,7 +252,6 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
     setIsCompleted(false);
     setReview('');
     setTimerData(null);
-    // 타이머 상태 초기화
     if (quest?.id) {
       localStorage.removeItem(`timer_${quest.id}`);
     }
@@ -382,7 +268,7 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
 
       const questData = {
         quest,
-        timerData,
+        timerDetails: timerData,
         review
       };
 
@@ -402,13 +288,7 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
           <DialogTitle>{quest.title}</DialogTitle>
         </DialogHeader>
         
-        {!isCompleted ? (
-          <QuestTimer 
-            onComplete={handleTimerComplete} 
-            onCancel={handleCancel} 
-            questId={quest.id}
-          />
-        ) : (
+        {isCompleted ? (
           <div className="grid gap-4">
             <label className="font-medium">Quest Review</label>
             <textarea 
@@ -426,6 +306,18 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
               </Button>
             </div>
           </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <div className="text-sm text-gray-600 mb-2">{quest.type}</div>
+              <p className="text-gray-700">{quest.description}</p>
+            </div>
+            <QuestTimer 
+              onComplete={handleTimerComplete} 
+              onCancel={handleCancel} 
+              questId={quest.id}
+            />
+          </>
         )}
       </DialogContent>
     </Dialog>

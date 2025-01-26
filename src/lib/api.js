@@ -42,5 +42,15 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to get daily wrap-up');
     return response.json();
+  },
+
+  updateCharacter: async (characterData) => {
+    const response = await fetch(`${API_URL}/character/update/${encodeURIComponent(characterData.characterName)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(characterData)
+    });
+    if (!response.ok) throw new Error('Failed to update character');
+    return response.json();
   }
 };
