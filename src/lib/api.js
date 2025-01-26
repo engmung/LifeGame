@@ -52,5 +52,15 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to update character');
     return response.json();
+  },
+
+  deleteQuests: async (characterName, questIds) => {
+    const response = await fetch(`${API_URL}/quests/delete/${encodeURIComponent(characterName)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questIds })
+    });
+    if (!response.ok) throw new Error('Failed to delete quests');
+    return response.json();
   }
 };

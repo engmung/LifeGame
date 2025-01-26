@@ -1,22 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '@/lib/api';
 
-// Quest Context
 const QuestContext = createContext();
 const UserContext = createContext();
 
 export const useQuests = () => {
   const context = useContext(QuestContext);
-  if (!context) {
-    throw new Error('useQuests must be used within a QuestProvider');
-  }
+  if (!context) throw new Error('useQuests must be used within a QuestProvider');
   return context;
 };
 
 export const useUserSettings = () => {
   const context = useContext(UserContext);
-  if (!context) {
-    throw new Error('useUserSettings must be used within a UserSettingsProvider');
-  }
+  if (!context) throw new Error('useUserSettings must be used within a UserSettingsProvider');
   return context;
 };
 
@@ -36,6 +32,9 @@ export const QuestProvider = ({ children }) => {
     return savedInProgressQuest ? JSON.parse(savedInProgressQuest) : null;
   });
 
+  const [selectedQuests, setSelectedQuests] = useState([]);
+  const { settings } = useUserSettings();
+
   useEffect(() => {
     localStorage.setItem('quests', JSON.stringify(quests));
   }, [quests]);
@@ -50,7 +49,25 @@ export const QuestProvider = ({ children }) => {
 
   const updateQuests = (newQuests) => {
     setQuests(newQuests);
-    localStorage.setItem('quests', JSON.stringify(newQuests));
+  };
+
+  const toggleQuestSelection = (questId) => {
+    setSelectedQuests(prev => 
+      prev.includes(questId) 
+        ? prev.filter(id => id !== questId)
+        : [...prev, questId]
+    );
+  };
+
+  const deleteSelectedQuests = async () => {
+    try {
+      await api.deleteQuests(settings.characterName, selectedQuests);
+      setQuests(prev => prev.filter(quest => !selectedQuests.includes(quest.id)));
+      setSelectedQuests([]);
+    } catch (error) {
+      console.error('Error deleting quests:', error);
+      throw error;
+    }
   };
 
   const completeQuest = (quest, review) => {
@@ -73,9 +90,7 @@ export const QuestProvider = ({ children }) => {
   };
 
   const deleteCompletedQuest = (questId) => {
-    const updatedQuests = completedQuests.filter(quest => quest.id !== questId);
-    setCompletedQuests(updatedQuests);
-    localStorage.setItem('completedQuests', JSON.stringify(updatedQuests));
+    setCompletedQuests(prev => prev.filter(quest => quest.id !== questId));
   };
 
   return (
@@ -84,11 +99,14 @@ export const QuestProvider = ({ children }) => {
         quests, 
         completedQuests, 
         inProgressQuest,
+        selectedQuests,
         completeQuest,
         startQuest,
         cancelQuest,
         updateQuests,
-        deleteCompletedQuest
+        deleteCompletedQuest,
+        toggleQuestSelection,
+        deleteSelectedQuests
       }}
     >
       {children}

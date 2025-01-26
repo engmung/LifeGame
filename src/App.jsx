@@ -9,7 +9,8 @@ import {
   QuestCard, 
   QuestOverlay, 
   CreateQuestButton ,
-  GenerateQuestButton
+  GenerateQuestButton,
+  DeleteQuestsButton
 } from './components/QuestCards';
 import { CustomQuestCard } from './components/CustomQuestCard';
 import { CharacterSettingsDialog } from './components/CharacterSettingsDialog';
@@ -27,9 +28,12 @@ const MainContent = () => {
 
   return (
     <div className="relative">
-      <div className="mt-16">
-        <CreateQuestButton />
-        <GenerateQuestButton />
+      <div className="mt-16 flex justify-between items-center">
+        <div className="flex-1">
+          <CreateQuestButton />
+          <GenerateQuestButton />
+        </div>
+        <DeleteQuestsButton />
       </div>
       <div className="grid grid-cols-2 gap-4 mt-4">
         {quests.length === 0 ? (
