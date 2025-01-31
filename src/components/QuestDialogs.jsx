@@ -258,28 +258,24 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
     onOpenChange(false);
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (!timerData) {
-        console.error('No timer data available');
-        alert('타이머 데이터가 없습니다.');
-        return;
-      }
-
-      const questData = {
-        quest,
-        timerDetails: timerData,
-        review
-      };
-
-      await api.completeQuest(settings.characterName, questData);
-      completeQuest(quest, review);
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error completing quest:', error);
-      alert('퀘스트 완료에 실패했습니다.');
-    }
-  };
+  // QuestDialogs.jsx
+const handleSubmit = async () => {
+  try {
+    const questData = {
+      title: quest.title,  // 명시적으로 필요한 필드만 전송
+      id: quest.id,
+      timerDetails: timerData,
+      review: review
+    };
+    console.log('Sending quest data:', questData);  // 전송 데이터 확인
+    await api.completeQuest(settings.characterName, questData);
+    completeQuest(quest, review);
+  } catch (error) {
+    console.error('Error completing quest:', error);
+    // 더 자세한 에러 메시지 표시
+    alert(`퀘스트 완료 실패: ${error.message}`);
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
