@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { User } from 'lucide-react';
-import { useUserSettings } from './QuestContext';
+import { useUserSettings } from './UserContext'; // 수정된 임포트
 import { api } from '@/lib/api';
 
 export const CharacterSettingsDialog = () => {

@@ -21,7 +21,8 @@ import {
   QuestCard, 
   QuestOverlay, 
   CreateQuestButton ,
-  GenerateQuestButton
+  GenerateQuestButton,
+  DeleteQuestsButton
 } from './components/QuestCards';
 import { CustomQuestCard } from './components/CustomQuestCard';
 import { CharacterSettingsDialog } from './components/CharacterSettingsDialog';
@@ -569,21 +570,38 @@ File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\componen
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Book, Loader2 } from 'lucide-react';
+import { Book, Loader2, Trash2 } from 'lucide-react';
 import { useQuests, useUserSettings } from './QuestContext';
 import { api } from '@/lib/api';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const QuestCard = ({ quest, onClick }) => {
-  const { inProgressQuest } = useQuests();
+  const { inProgressQuest, selectedQuests, toggleQuestSelection } = useQuests();
   const isInProgress = inProgressQuest?.id === quest.id;
+  const isSelected = selectedQuests.includes(quest.id);
+
+  const handleSelect = (e) => {
+    e.stopPropagation();
+    toggleQuestSelection(quest.id);
+  };
 
   return (
     <Card 
-      className={`h-full cursor-pointer transition-colors ${
-        isInProgress ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+      className={`relative h-full cursor-pointer transition-colors ${
+        isInProgress ? 'bg-blue-50 hover:bg-blue-100' : 
+        isSelected ? 'bg-blue-100' : 'hover:bg-gray-50'
       }`}
       onClick={() => onClick(quest)}
     >
+      <div 
+        className="absolute top-2 right-2 z-10"
+        onClick={handleSelect}
+      >
+        <Checkbox 
+          checked={isSelected}
+          className="h-5 w-5"
+        />
+      </div>
       <CardContent className="p-4">
         <h3 className="font-semibold mb-2">{quest.title}</h3>
         <p className="text-sm text-gray-600">{quest.type}</p>
@@ -594,6 +612,54 @@ export const QuestCard = ({ quest, onClick }) => {
         )}
       </CardContent>
     </Card>
+  );
+};
+
+export const DeleteQuestsButton = () => {
+  const { selectedQuests, deleteSelectedQuests } = useQuests();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (selectedQuests.length === 0) {
+      alert('삭제할 퀘스트를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedQuests.length}개의 퀘스트를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteSelectedQuests();
+      alert('선택한 퀘스트가 삭제되었습니다.');
+    } catch (error) {
+      alert('퀘스트 삭제에 실패했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <Button
+      onClick={handleDelete}
+      variant="destructive"
+      size="sm"
+      disabled={selectedQuests.length === 0 || isDeleting}
+      className="ml-2"
+    >
+      {isDeleting ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          삭제 중...
+        </>
+      ) : (
+        <>
+          <Trash2 className="mr-2 h-4 w-4" />
+          선택 삭제 ({selectedQuests.length})
+        </>
+      )}
+    </Button>
   );
 };
 
@@ -714,6 +780,7 @@ export const CreateQuestButton = () => {
     </Button>
   );
 };
+
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\QuestContext.jsx
 
@@ -1125,28 +1192,24 @@ export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
     onOpenChange(false);
   };
 
-  const handleSubmit = async () => {
-    try {
-      if (!timerData) {
-        console.error('No timer data available');
-        alert('타이머 데이터가 없습니다.');
-        return;
-      }
-
-      const questData = {
-        quest,
-        timerDetails: timerData,
-        review
-      };
-
-      await api.completeQuest(settings.characterName, questData);
-      completeQuest(quest, review);
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error completing quest:', error);
-      alert('퀘스트 완료에 실패했습니다.');
-    }
-  };
+  // QuestDialogs.jsx
+const handleSubmit = async () => {
+  try {
+    const questData = {
+      title: quest.title,  // 명시적으로 필요한 필드만 전송
+      id: quest.id,
+      timerDetails: timerData,
+      review: review
+    };
+    console.log('Sending quest data:', questData);  // 전송 데이터 확인
+    await api.completeQuest(settings.characterName, questData);
+    completeQuest(quest, review);
+  } catch (error) {
+    console.error('Error completing quest:', error);
+    // 더 자세한 에러 메시지 표시
+    alert(`퀘스트 완료 실패: ${error.message}`);
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
