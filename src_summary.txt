@@ -10,90 +10,32 @@ Directory: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\sty
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\App.jsx
 
-import React, { useState } from 'react';
-import { QuestProvider, UserSettingsProvider, useQuests } from './components/QuestContext';
-import { DailyWrapUpDialog } from './components/DailyWrapUp';
-import { 
-  QuestHistoryDialog,
-  QuestDetailDialog 
-} from './components/QuestDialogs';
-import { 
-  QuestCard, 
-  QuestOverlay, 
-  CreateQuestButton ,
-  GenerateQuestButton,
-  DeleteQuestsButton
-} from './components/QuestCards';
-import { CustomQuestCard } from './components/CustomQuestCard';
+import React from 'react';
+import { UserSettingsProvider } from './components/UserContext';
+import { ActivityProvider } from './components/ActivityContext';
 import { CharacterSettingsDialog } from './components/CharacterSettingsDialog';
-
-// MainContent component to use hooks
-const MainContent = () => {
-  const { quests } = useQuests();
-  const [selectedQuest, setSelectedQuest] = useState(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const handleQuestClick = (quest) => {
-    setSelectedQuest(quest);
-    setDetailOpen(true);
-  };
-
-  return (
-    <div className="relative">
-      <div className="mt-16 flex justify-between items-center">
-        <div className="flex-1">
-          <CreateQuestButton />
-          <GenerateQuestButton />
-        </div>
-        <DeleteQuestsButton />
-      </div>
-      <div className="grid grid-cols-2 gap-4 mt-4">
-        {quests.length === 0 ? (
-          <div className="flex justify-center items-center min-h-[60vh] col-span-2">
-            <CreateQuestButton />
-          </div>
-        ) : (
-          quests.map((quest) => (
-            <QuestCard 
-              key={quest.id} 
-              quest={quest}
-              onClick={handleQuestClick}
-            />
-          ))
-        )}
-        <CustomQuestCard />
-      </div>
-
-      {selectedQuest && (
-        <QuestDetailDialog
-          quest={selectedQuest}
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-        />
-      )}
-
-      <QuestOverlay 
-        mainCount={quests.filter(q => q.type === "Main Quest").length}
-        subCount={quests.filter(q => q.type === "Sub Quest").length}
-      />
-    </div>
-  );
-};
+import { ActivityList } from './components/ActivityList';
+import { CreateActivityButton } from './components/CreateActivityButton';
+import { GenerateTimelineButton } from './components/GenerateTimelineButton';
+import { GenerateQuestionsButton } from './components/GenerateQuestionsButton';
 
 // Main App component
 const App = () => {
   return (
     <UserSettingsProvider>
-      <QuestProvider>
+      <ActivityProvider>
         <div className="min-h-screen bg-gray-100 p-4">
           <div className="fixed top-4 right-4 flex gap-2">
             <CharacterSettingsDialog />
-            <QuestHistoryDialog />
-            <DailyWrapUpDialog />
+            <GenerateTimelineButton />
+            <GenerateQuestionsButton />
           </div>
-          <MainContent />
+          <div className="mt-16">
+            <CreateActivityButton />
+            <ActivityList />
+          </div>
         </div>
-      </QuestProvider>
+      </ActivityProvider>
     </UserSettingsProvider>
   );
 };
@@ -120,13 +62,132 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 Directory: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ui
 
 
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ActivityContext.jsx
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useUserSettings } from './UserContext';
+
+const ActivityContext = createContext();
+
+export const useActivities = () => {
+  const context = useContext(ActivityContext);
+  if (!context) throw new Error('useActivities must be used within an ActivityProvider');
+  return context;
+};
+
+export const ActivityProvider = ({ children }) => {
+  const [activities, setActivities] = useState(() => {
+    const savedActivities = localStorage.getItem('activities');
+    return savedActivities ? JSON.parse(savedActivities) : [];
+  });
+
+  // Save activities to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('activities', JSON.stringify(activities));
+  }, [activities]);
+
+  const addActivity = (activity) => {
+    setActivities(prev => [...prev, {
+      id: Date.now().toString(),
+      ...activity,
+      createdAt: new Date().toISOString()
+    }]);
+  };
+
+  const updateActivity = (id, updates) => {
+    setActivities(prev => 
+      prev.map(activity => 
+        activity.id === id ? { ...activity, ...updates } : activity
+      )
+    );
+  };
+
+  const deleteActivity = (id) => {
+    setActivities(prev => prev.filter(activity => activity.id !== id));
+  };
+
+  const clearActivities = () => {
+    setActivities([]);
+  };
+
+  return (
+    <ActivityContext.Provider 
+      value={{ 
+        activities,
+        addActivity,
+        updateActivity,
+        deleteActivity,
+        clearActivities
+      }}
+    >
+      {children}
+    </ActivityContext.Provider>
+  );
+};
+
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ActivityList.jsx
+
+import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Trash2, Edit } from 'lucide-react';
+import { useActivities } from './ActivityContext';
+
+export const ActivityList = () => {
+  const { activities, deleteActivity } = useActivities();
+
+  if (activities.length === 0) {
+    return (
+      <div className="mt-8 text-center text-gray-500">
+        아직 기록된 활동이 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 space-y-4">
+      {activities.map((activity) => (
+        <Card key={activity.id}>
+          <CardContent className="p-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-semibold">{activity.title}</h3>
+                <p className="text-sm text-gray-600">
+                  {activity.startTime} - {activity.endTime}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="icon" onClick={() => {/* TODO: Edit */}}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => deleteActivity(activity.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {activity.thoughts && (
+              <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
+                {activity.thoughts}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CharacterSettingsDialog.jsx
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { User } from 'lucide-react';
-import { useUserSettings } from './QuestContext';
+import { useUserSettings } from './UserContext'; // 수정된 임포트
 import { api } from '@/lib/api';
 
 export const CharacterSettingsDialog = () => {
@@ -267,637 +328,264 @@ export const CharacterSettingsDialog = () => {
 
 export default CharacterSettingsDialog;
 
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CustomQuestCard.jsx
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CreateActivityButton.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useActivities } from './ActivityContext';
 import { Plus } from 'lucide-react';
-import { QuestTimer } from './QuestDialogs';
-import { useUserSettings } from './QuestContext';
 
-export const CustomQuestCard = () => {
-  // States
+const getCurrentTime = () => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
+
+export const CreateActivityButton = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [activityName, setActivityName] = useState(() => {
-    return localStorage.getItem('currentActivityName') || '';
+  const { addActivity } = useActivities();
+  const [activityData, setActivityData] = useState({
+    title: '',
+    startTime: '',
+    endTime: getCurrentTime(),
+    thoughts: ''
   });
-  const [isStarted, setIsStarted] = useState(() => {
-    return localStorage.getItem('currentActivityName') ? true : false;
-  });
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [review, setReview] = useState('');
-  const [timerData, setTimerData] = useState(null);
-  const { settings } = useUserSettings();
 
-  // Open dialog when activity is in progress
-  useEffect(() => {
-    if (isStarted) {
-      setIsOpen(true);
+  const handleDialogOpen = (open) => {
+    if (open) {
+      // 다이얼로그가 열릴 때마다 endTime을 현재 시간으로 업데이트
+      setActivityData(prev => ({
+        ...prev,
+        endTime: getCurrentTime()
+      }));
     }
-  }, [isStarted]);
-
-  const resetState = () => {
-    setIsStarted(false);
-    setIsCompleted(false);
-    setReview('');
-    setTimerData(null);
-    localStorage.removeItem('timer_custom');
-    localStorage.removeItem('currentActivityName');
-    if (!isOpen) {
-      setActivityName('');
-    }
+    setIsOpen(open);
   };
 
-  const handleStartQuest = () => {
-    if (!activityName.trim()) {
-      alert('활동명을 입력해주세요.');
+  const handleSubmit = () => {
+    if (!activityData.title || !activityData.startTime || !activityData.endTime) {
+      alert('활동명과 시간을 모두 입력해주세요.');
       return;
     }
-    localStorage.setItem('currentActivityName', activityName);
-    setIsStarted(true);
-  };
 
-  const handleComplete = async (timerData) => {
-    setIsCompleted(true);
-    setTimerData(timerData);
-  };
+    // 시간 유효성 검사
+    const [startHour, startMinute] = activityData.startTime.split(':').map(Number);
+    const [endHour, endMinute] = activityData.endTime.split(':').map(Number);
+    const startTotal = startHour * 60 + startMinute;
+    const endTotal = endHour * 60 + endMinute;
 
-  const handleSubmit = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/activities/log/${settings.characterName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          activityName: activityName,
-          timerDetails: timerData,
-          review: review
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to log activity');
-      
-      alert('활동이 기록되었습니다.');
-      setIsOpen(false);
-      resetState();
-    } catch (error) {
-      console.error('Error logging activity:', error);
-      alert('활동 기록에 실패했습니다.');
+    if (startTotal >= endTotal) {
+      alert('시작 시간은 종료 시간보다 이전이어야 합니다.');
+      return;
     }
-  };
 
-  const handleCancel = () => {
+    addActivity(activityData);
+    setActivityData({
+      title: '',
+      startTime: '',
+      endTime: getCurrentTime(),
+      thoughts: ''
+    });
     setIsOpen(false);
-    resetState();
   };
 
   return (
     <>
-      <Card 
-        className={`h-full cursor-pointer ${isStarted ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
-        onClick={() => setIsOpen(true)}
+      <Button 
+        onClick={() => handleDialogOpen(true)}
+        className="w-full flex items-center gap-2"
       >
-        <CardContent className="p-4 flex flex-col items-center justify-center min-h-[200px]">
-          {isStarted ? (
-            <>
-              <h3 className="font-semibold">{activityName}</h3>
-              <p className="text-sm text-blue-600 mt-2">진행 중...</p>
-            </>
-          ) : (
-            <>
-              <Plus className="w-8 h-8 mb-2" />
-              <h3 className="font-semibold">커스텀 퀘스트</h3>
-              <p className="text-sm text-gray-600">나만의 활동 기록하기</p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+        <Plus className="w-4 h-4" />
+        활동 추가하기
+      </Button>
 
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        setIsOpen(open);
-        if (!open && !isCompleted && isStarted) {
-          setIsOpen(true);
-        }
-      }}>
+      <Dialog open={isOpen} onOpenChange={handleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isStarted ? activityName : '커스텀 활동'}</DialogTitle>
+            <DialogTitle>새로운 활동 기록</DialogTitle>
           </DialogHeader>
           
-          {isCompleted ? (
-            <div className="grid gap-4">
-              <label className="font-medium">활동 후기</label>
-              <textarea 
-                className="min-h-[100px] p-2 border rounded"
-                placeholder="활동에 대한 후기를 작성해주세요..."
-                value={review}
-                onChange={(e) => setReview(e.target.value)}
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">활동명</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded"
+                value={activityData.title}
+                onChange={(e) => setActivityData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="어떤 활동을 하셨나요?"
               />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleCancel}>
-                  취소
-                </Button>
-                <Button onClick={handleSubmit}>
-                  완료
-                </Button>
-              </div>
             </div>
-          ) : !isStarted ? (
-            <div className="grid gap-4">
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">활동명</label>
+                <label className="block text-sm font-medium mb-1">시작 시간</label>
                 <input
-                  type="text"
-                  className="w-full border rounded p-2"
-                  value={activityName}
-                  onChange={(e) => setActivityName(e.target.value)}
-                  placeholder="활동명을 입력하세요"
+                  type="time"
+                  className="w-full p-2 border rounded"
+                  value={activityData.startTime}
+                  onChange={(e) => setActivityData(prev => ({ ...prev, startTime: e.target.value }))}
                 />
               </div>
-              <Button onClick={handleStartQuest}>시작하기</Button>
+              <div>
+                <label className="block text-sm font-medium mb-1">종료 시간</label>
+                <input
+                  type="time"
+                  className="w-full p-2 border rounded"
+                  value={activityData.endTime}
+                  onChange={(e) => setActivityData(prev => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
             </div>
-          ) : (
-            <QuestTimer
-              onComplete={handleComplete}
-              onCancel={handleCancel}
-              questId="custom"
-            />
-          )}
+
+            <div>
+              <label className="block text-sm font-medium mb-1">생각 / 감정</label>
+              <textarea
+                className="w-full p-2 border rounded min-h-[100px]"
+                value={activityData.thoughts}
+                onChange={(e) => setActivityData(prev => ({ ...prev, thoughts: e.target.value }))}
+                placeholder="활동 중에 어떤 생각이나 감정이 들었나요?"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => handleDialogOpen(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSubmit}>
+                추가하기
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
   );
 };
 
-export default CustomQuestCard;
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\GenerateQuestionsButton.jsx
 
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\DailyWrapUp.jsx
-
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Book, Loader2 } from 'lucide-react';
-import { useUserSettings } from './QuestContext';
+import { HelpCircle, Loader2 } from 'lucide-react';
+import { useUserSettings } from './UserContext';
 import { api } from '@/lib/api';
 
-// 타임라인 아이템 컴포넌트
-const TimelineItem = ({ activity }) => (
-  <div className="mb-8 flex gap-4">
-    <div className="flex flex-col items-center">
-      <div className="w-2 h-2 bg-blue-600 rounded-full" />
-      <div className="w-0.5 h-full bg-blue-200" />
-    </div>
-    <div className="flex-1">
-      <Card className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold">{activity.name}</h3>
-          <span className="text-sm text-gray-500">
-            {activity.start} - {activity.end}
-          </span>
-        </div>
-        <p className="text-sm text-gray-600 mb-2">
-          소요 시간: {activity.duration}분
-        </p>
-        {activity.review && (
-          <div className="text-sm bg-gray-50 p-2 rounded">
-            {activity.review}
-          </div>
-        )}
-      </Card>
-    </div>
-  </div>
-);
-
-export const DailyWrapUpDialog = () => {
+export const GenerateQuestionsButton = () => {
   const { settings } = useUserSettings();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activities, setActivities] = useState(null);
-  const [error, setError] = useState(null);
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
-  const handleGenerateWrapUp = async () => {
+  const handleGenerateQuestions = async () => {
     if (!settings.characterName) {
-      alert('캐릭터 이름을 먼저 설정해주세요.');
+      alert('설정에서 캐릭터 이름을 먼저 설정해주세요.');
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-
     try {
-      const data = await api.getDailyWrapUp(settings.characterName, selectedDate);
-      setActivities(data.activities);
+      setIsGenerating(true);
+      const result = await api.generateQuestions(settings.characterName);
       
-      if (data.notionPageUrl) {
-        const shouldOpen = confirm('노션 페이지가 생성되었습니다. 지금 열어보시겠습니까?');
+      if (result.notionPageUrl) {
+        const shouldOpen = confirm('성찰 질문이 생성되었습니다. 노션 페이지를 여시겠습니까?');
         if (shouldOpen) {
-          window.open(data.notionPageUrl, '_blank');
+          window.open(result.notionPageUrl, '_blank');
         }
       }
-    } catch (err) {
-      console.error('Error:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 right-28">
-          <Book className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
-      
-      <DialogContent className="max-w-[90vw] sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>하루 마무리</DialogTitle>
-        </DialogHeader>
-
-        <div className="grid gap-4">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">날짜 선택</label>
-              <input
-                type="date"
-                className="w-full border rounded p-2"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
-            <Button 
-              onClick={handleGenerateWrapUp}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  생성 중...
-                </>
-              ) : (
-                '마무리 생성'
-              )}
-            </Button>
-          </div>
-
-          {error && (
-            <div className="p-4 bg-red-50 text-red-600 rounded">
-              {error}
-            </div>
-          )}
-
-          {activities && (
-            <div className="mt-4">
-              <h3 className="font-semibold mb-4">활동 타임라인</h3>
-              <div className="relative ml-4">
-                {activities.map((activity, index) => (
-                  <TimelineItem key={index} activity={activity} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\QuestCards.jsx
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Book, Loader2, Trash2 } from 'lucide-react';
-import { useQuests, useUserSettings } from './QuestContext';
-import { api } from '@/lib/api';
-import { Checkbox } from '@/components/ui/checkbox';
-
-export const QuestCard = ({ quest, onClick }) => {
-  const { inProgressQuest, selectedQuests, toggleQuestSelection } = useQuests();
-  const isInProgress = inProgressQuest?.id === quest.id;
-  const isSelected = selectedQuests.includes(quest.id);
-
-  const handleSelect = (e) => {
-    e.stopPropagation();
-    toggleQuestSelection(quest.id);
-  };
-
-  return (
-    <Card 
-      className={`relative h-full cursor-pointer transition-colors ${
-        isInProgress ? 'bg-blue-50 hover:bg-blue-100' : 
-        isSelected ? 'bg-blue-100' : 'hover:bg-gray-50'
-      }`}
-      onClick={() => onClick(quest)}
-    >
-      <div 
-        className="absolute top-2 right-2 z-10"
-        onClick={handleSelect}
-      >
-        <Checkbox 
-          checked={isSelected}
-          className="h-5 w-5"
-        />
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-semibold mb-2">{quest.title}</h3>
-        <p className="text-sm text-gray-600">{quest.type}</p>
-        {isInProgress && (
-          <div className="mt-2 text-xs text-blue-600 font-medium">
-            In Progress...
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-export const DeleteQuestsButton = () => {
-  const { selectedQuests, deleteSelectedQuests } = useQuests();
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    if (selectedQuests.length === 0) {
-      alert('삭제할 퀘스트를 선택해주세요.');
-      return;
-    }
-
-    if (!confirm(`선택한 ${selectedQuests.length}개의 퀘스트를 삭제하시겠습니까?`)) {
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await deleteSelectedQuests();
-      alert('선택한 퀘스트가 삭제되었습니다.');
     } catch (error) {
-      alert('퀘스트 삭제에 실패했습니다.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  return (
-    <Button
-      onClick={handleDelete}
-      variant="destructive"
-      size="sm"
-      disabled={selectedQuests.length === 0 || isDeleting}
-      className="ml-2"
-    >
-      {isDeleting ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          삭제 중...
-        </>
-      ) : (
-        <>
-          <Trash2 className="mr-2 h-4 w-4" />
-          선택 삭제 ({selectedQuests.length})
-        </>
-      )}
-    </Button>
-  );
-};
-
-export const QuestOverlay = ({ mainCount, subCount }) => {
-  return (
-    <div className="fixed bottom-4 right-4 bg-black/70 text-white p-2 rounded-lg text-sm">
-      <p>Main Quests: {mainCount}</p>
-      <p>Sub Quests: {subCount}</p>
-    </div>
-  );
-};
-
-export const GenerateQuestButton = () => {
-  const { settings } = useUserSettings();
-  const { updateQuests } = useQuests();
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleGenerateQuest = async () => {
-    try {
-      if (!settings.characterName) {
-        alert('캐릭터 이름을 먼저 설정해주세요.');
-        return;
-      }
-
-      if (!confirm('새로운 퀘스트를 생성하시겠습니까? (개발자 전용)')) return;
-
-      setIsGenerating(true);
-      await api.generateQuests(settings.characterName);
-      
-      // Fetch newly generated quests
-      const result = await api.getQuests(settings.characterName);
-      if (result.status === 'success') {
-        const newQuests = result.data.map(quest => ({
-          id: quest.id,
-          title: quest.title,
-          type: quest.type,
-          description: quest.description,
-          difficulty: quest.difficulty,
-          exp: quest.exp,
-          gold: quest.gold
-        }));
-        
-        updateQuests(newQuests);
-        alert('새로운 퀘스트가 생성되었습니다.');
-      }
-    } catch (error) {
-      console.error('Error generating quests:', error);
-      alert('퀘스트 생성에 실패했습니다.');
+      console.error('Error generating questions:', error);
+      alert('질문 생성에 실패했습니다.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <Button 
-      onClick={handleGenerateQuest}
-      size="lg"
-      variant="outline"
-      className="w-full mt-2"
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleGenerateQuestions}
       disabled={isGenerating}
     >
       {isGenerating ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          퀘스트 생성 중...
-        </>
+        <Loader2 className="h-6 w-6 animate-spin" />
       ) : (
-        "퀘스트 생성하기 (개발자 전용)"
+        <HelpCircle className="h-6 w-6" />
       )}
     </Button>
   );
 };
 
-export const CreateQuestButton = () => {
-  const { updateQuests } = useQuests();
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\GenerateTimelineButton.jsx
+
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { BookOpen, Loader2 } from 'lucide-react';
+import { useActivities } from './ActivityContext';
+import { useUserSettings } from './UserContext';
+import { api } from '@/lib/api';
+
+export const GenerateTimelineButton = () => {
+  const { activities, clearActivities } = useActivities();
   const { settings } = useUserSettings();
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
-  const handleCreateQuest = async () => {
+  const handleGenerateTimeline = async () => {
+    if (activities.length === 0) {
+      alert('기록된 활동이 없습니다.');
+      return;
+    }
+
+    if (!settings.characterName) {
+      alert('설정에서 캐릭터 이름을 먼저 설정해주세요.');
+      return;
+    }
+
     try {
-      if (!settings.characterName) {
-        alert('캐릭터 이름을 먼저 설정해주세요.');
-        return;
+      setIsGenerating(true);
+      const result = await api.generateTimeline(settings.characterName, activities);
+      
+      if (result.notionPageUrl) {
+        const shouldOpen = confirm('타임라인이 생성되었습니다. 노션 페이지를 여시겠습니까?');
+        if (shouldOpen) {
+          window.open(result.notionPageUrl, '_blank');
+        }
       }
-
-      if (!confirm('현재 퀘스트를 모두 새로운 퀘스트로 교체하시겠습니까?')) return;
-
-      const result = await api.getQuests(settings.characterName);
-      if (result.status === 'success') {
-        // 기존 퀘스트 데이터 구조에 맞게 변환
-        const newQuests = result.data.map(quest => ({
-          id: quest.id,
-          title: quest.title,
-          type: quest.type,
-          description: quest.description,
-          difficulty: quest.difficulty,
-          exp: quest.exp,
-          gold: quest.gold
-        }));
-        
-        updateQuests(newQuests);
-        alert('새로운 퀘스트가 로드되었습니다.');
-      }
+      
+      clearActivities(); // 활동 목록 초기화
     } catch (error) {
-      console.error('Error fetching quests:', error);
-      alert('퀘스트 불러오기에 실패했습니다.');
+      console.error('Error generating timeline:', error);
+      alert('타임라인 생성에 실패했습니다.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
   return (
-    <Button 
-      onClick={handleCreateQuest}
-      size="lg"
-      variant="outline"
-      className="w-full"
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={handleGenerateTimeline}
+      disabled={isGenerating}
     >
-      <Book className="mr-2 h-4 w-4" />
-      퀘스트 불러오기
+      {isGenerating ? (
+        <Loader2 className="h-6 w-6 animate-spin" />
+      ) : (
+        <BookOpen className="h-6 w-6" />
+      )}
     </Button>
   );
 };
 
-
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\QuestContext.jsx
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\UserContext.jsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '@/lib/api';
 
-const QuestContext = createContext();
 const UserContext = createContext();
-
-export const useQuests = () => {
-  const context = useContext(QuestContext);
-  if (!context) throw new Error('useQuests must be used within a QuestProvider');
-  return context;
-};
 
 export const useUserSettings = () => {
   const context = useContext(UserContext);
   if (!context) throw new Error('useUserSettings must be used within a UserSettingsProvider');
   return context;
-};
-
-export const QuestProvider = ({ children }) => {
-  const [quests, setQuests] = useState(() => {
-    const savedQuests = localStorage.getItem('quests');
-    return savedQuests ? JSON.parse(savedQuests) : [];
-  });
-  
-  const [completedQuests, setCompletedQuests] = useState(() => {
-    const savedCompletedQuests = localStorage.getItem('completedQuests');
-    return savedCompletedQuests ? JSON.parse(savedCompletedQuests) : [];
-  });
-  
-  const [inProgressQuest, setInProgressQuest] = useState(() => {
-    const savedInProgressQuest = localStorage.getItem('inProgressQuest');
-    return savedInProgressQuest ? JSON.parse(savedInProgressQuest) : null;
-  });
-
-  const [selectedQuests, setSelectedQuests] = useState([]);
-  const { settings } = useUserSettings();
-
-  useEffect(() => {
-    localStorage.setItem('quests', JSON.stringify(quests));
-  }, [quests]);
-
-  useEffect(() => {
-    localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
-  }, [completedQuests]);
-
-  useEffect(() => {
-    localStorage.setItem('inProgressQuest', JSON.stringify(inProgressQuest));
-  }, [inProgressQuest]);
-
-  const updateQuests = (newQuests) => {
-    setQuests(newQuests);
-  };
-
-  const toggleQuestSelection = (questId) => {
-    setSelectedQuests(prev => 
-      prev.includes(questId) 
-        ? prev.filter(id => id !== questId)
-        : [...prev, questId]
-    );
-  };
-
-  const deleteSelectedQuests = async () => {
-    try {
-      await api.deleteQuests(settings.characterName, selectedQuests);
-      setQuests(prev => prev.filter(quest => !selectedQuests.includes(quest.id)));
-      setSelectedQuests([]);
-    } catch (error) {
-      console.error('Error deleting quests:', error);
-      throw error;
-    }
-  };
-
-  const completeQuest = (quest, review) => {
-    const completedQuest = {
-      ...quest,
-      completedAt: new Date().toISOString(),
-      review
-    };
-    setCompletedQuests(prev => [...prev, completedQuest]);
-    setQuests(prev => prev.filter(q => q.id !== quest.id));
-    setInProgressQuest(null);
-  };
-
-  const startQuest = (quest) => {
-    setInProgressQuest(quest);
-  };
-
-  const cancelQuest = () => {
-    setInProgressQuest(null);
-  };
-
-  const deleteCompletedQuest = (questId) => {
-    setCompletedQuests(prev => prev.filter(quest => quest.id !== questId));
-  };
-
-  return (
-    <QuestContext.Provider 
-      value={{ 
-        quests, 
-        completedQuests, 
-        inProgressQuest,
-        selectedQuests,
-        completeQuest,
-        startQuest,
-        cancelQuest,
-        updateQuests,
-        deleteCompletedQuest,
-        toggleQuestSelection,
-        deleteSelectedQuests
-      }}
-    >
-      {children}
-    </QuestContext.Provider>
-  );
 };
 
 export const UserSettingsProvider = ({ children }) => {
@@ -927,376 +615,6 @@ export const UserSettingsProvider = ({ children }) => {
     <UserContext.Provider value={{ settings, updateSettings }}>
       {children}
     </UserContext.Provider>
-  );
-};
-
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\QuestDialogs.jsx
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Settings, User, Play, Pause, CheckCircle, History, Book } from 'lucide-react';
-import { useQuests, useUserSettings } from './QuestContext';
-import { api } from '@/lib/api';
-
-export const QuestTimer = ({ onComplete, onCancel, questId }) => {
-  const [timerState, setTimerState] = useState(() => {
-    const savedState = localStorage.getItem(`timer_${questId}`);
-    return savedState ? JSON.parse(savedState) : {
-      startTime: null,
-      currentTime: 0,
-      isRunning: false,
-      pauseHistory: [],
-      lastPauseStart: null
-    };
-  });
-
-  const timerRef = useRef(null);
-
-  // 타이머 상태가 변경될 때마다 저장
-  useEffect(() => {
-    localStorage.setItem(`timer_${questId}`, JSON.stringify(timerState));
-  }, [timerState, questId]);
-
-  // 실제 경과 시간 계산
-  const calculateElapsedTime = () => {
-    if (!timerState.startTime) return 0;
-
-    const totalPausedTime = timerState.pauseHistory.reduce(
-      (total, pause) => total + (pause.endTime - pause.startTime),
-      0
-    );
-
-    const currentPauseTime = timerState.lastPauseStart 
-      ? Date.now() - timerState.lastPauseStart 
-      : 0;
-
-    const totalTime = Date.now() - timerState.startTime - totalPausedTime - currentPauseTime;
-    return Math.floor(totalTime / 1000);
-  };
-
-  useEffect(() => {
-    if (timerState.isRunning) {
-      timerRef.current = setInterval(() => {
-        const elapsed = calculateElapsedTime();
-        setTimerState(prev => ({ ...prev, currentTime: elapsed }));
-      }, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [timerState.isRunning]);
-
-  const startTimer = () => {
-    if (!timerState.startTime) {
-      setTimerState(prev => ({
-        ...prev,
-        startTime: Date.now(),
-        isRunning: true
-      }));
-    } else if (timerState.lastPauseStart) {
-      setTimerState(prev => ({
-        ...prev,
-        pauseHistory: [
-          ...prev.pauseHistory,
-          {
-            startTime: prev.lastPauseStart,
-            endTime: Date.now()
-          }
-        ],
-        lastPauseStart: null,
-        isRunning: true
-      }));
-    }
-  };
-
-  const pauseTimer = () => {
-    setTimerState(prev => ({
-      ...prev,
-      lastPauseStart: Date.now(),
-      isRunning: false
-    }));
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const handleComplete = () => {
-    const finalTimerState = {
-      startTime: timerState.startTime,
-      endTime: Date.now(),
-      totalTime: timerState.currentTime,
-      pauseHistory: timerState.lastPauseStart ? [
-        ...timerState.pauseHistory,
-        {
-          startTime: timerState.lastPauseStart,
-          endTime: Date.now()
-        }
-      ] : timerState.pauseHistory
-    };
-    
-    onComplete(finalTimerState);
-  };
-
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-  };
-
-  return (
-    <div className="text-center p-4">
-      <div className="text-4xl font-mono mb-4">{formatTime(timerState.currentTime)}</div>
-      <div className="flex justify-center gap-2">
-        <Button
-          variant={timerState.isRunning ? "outline" : "default"}
-          onClick={timerState.isRunning ? pauseTimer : startTimer}
-        >
-          {timerState.isRunning ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-        </Button>
-        {timerState.currentTime > 0 && (
-          <>
-            <Button variant="default" onClick={handleComplete}>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Complete
-            </Button>
-            <Button variant="destructive" onClick={onCancel}>
-              Cancel
-            </Button>
-          </>
-        )}
-      </div>
-      {timerState.pauseHistory.length > 0 && (
-        <div className="mt-4 text-sm text-gray-500">
-          Paused {timerState.pauseHistory.length} times
-        </div>
-      )}
-    </div>
-  );
-};
-
-export const QuestHistoryDialog = () => {
-  const { completedQuests, deleteCompletedQuest } = useQuests();
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const formatDuration = (timerDetails) => {
-    if (!timerDetails) return 'No time recorded';
-    
-    const totalSeconds = Math.floor(timerDetails.totalTime);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    
-    return `${hours}h ${minutes}m ${seconds}s`;
-  };
-
-  const handleDelete = (questId) => {
-    if (!confirm('정말로 이 기록을 삭제하시겠습니까?')) return;
-    deleteCompletedQuest(questId);
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 right-16">
-          <History className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[90vw] sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Quest History</DialogTitle>
-        </DialogHeader>
-        {completedQuests.length === 0 ? (
-          <p className="text-center text-gray-500">No completed quests yet.</p>
-        ) : (
-          completedQuests.map((quest) => (
-            <Card key={quest.id + quest.completedAt} className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="font-semibold">{quest.title}</h3>
-                  <p className="text-sm text-gray-600">{quest.type}</p>
-                  <div className="mt-2 space-y-1 text-sm text-gray-500">
-                    <p>Started: {formatDate(quest.timerDetails?.startTime)}</p>
-                    <p>Completed: {formatDate(quest.timerDetails?.endTime)}</p>
-                    <p>Total Time: {formatDuration(quest.timerDetails)}</p>
-                    {quest.timerDetails?.pauseHistory?.length > 0 && (
-                      <div className="mt-1">
-                        <p>Pauses ({quest.timerDetails.pauseHistory.length}):</p>
-                        <div className="ml-2 text-xs">
-                          {quest.timerDetails.pauseHistory.map((pause, index) => (
-                            <p key={index}>
-                              {formatDate(pause.startTime)} - {formatDate(pause.endTime)}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {quest.review && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded">
-                      <p className="text-sm">{quest.review}</p>
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => handleDelete(quest.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                  </svg>
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export const QuestDetailDialog = ({ quest, open, onOpenChange }) => {
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [review, setReview] = useState('');
-  const [timerData, setTimerData] = useState(null);
-  const { completeQuest, startQuest, cancelQuest } = useQuests();
-  const { settings } = useUserSettings();
-
-  useEffect(() => {
-    if (open) {
-      startQuest(quest);
-    }
-  }, [open]);
-
-  const handleTimerComplete = (finalTimerState) => {
-    setTimerData(finalTimerState);
-    setIsCompleted(true);
-  };
-
-  const handleCancel = () => {
-    cancelQuest();
-    setIsCompleted(false);
-    setReview('');
-    setTimerData(null);
-    if (quest?.id) {
-      localStorage.removeItem(`timer_${quest.id}`);
-    }
-    onOpenChange(false);
-  };
-
-  // QuestDialogs.jsx
-const handleSubmit = async () => {
-  try {
-    const questData = {
-      title: quest.title,  // 명시적으로 필요한 필드만 전송
-      id: quest.id,
-      timerDetails: timerData,
-      review: review
-    };
-    console.log('Sending quest data:', questData);  // 전송 데이터 확인
-    await api.completeQuest(settings.characterName, questData);
-    completeQuest(quest, review);
-  } catch (error) {
-    console.error('Error completing quest:', error);
-    // 더 자세한 에러 메시지 표시
-    alert(`퀘스트 완료 실패: ${error.message}`);
-  }
-};
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90vw] sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{quest.title}</DialogTitle>
-        </DialogHeader>
-        
-        {isCompleted ? (
-          <div className="grid gap-4">
-            <label className="font-medium">Quest Review</label>
-            <textarea 
-              className="min-h-[100px] p-2 border rounded"
-              placeholder="Write your quest review here..."
-              value={review}
-              onChange={(e) => setReview(e.target.value)}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
-                Complete
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="mb-6">
-              <div className="text-sm text-gray-600 mb-2">{quest.type}</div>
-              <p className="text-gray-700">{quest.description}</p>
-            </div>
-            <QuestTimer 
-              onComplete={handleTimerComplete} 
-              onCancel={handleCancel} 
-              questId={quest.id}
-            />
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export const GenerateQuestButton = () => {
-  const { settings } = useUserSettings();
-
-  const handleGenerateQuest = async () => {
-    try {
-      if (!settings.characterName) {
-        alert('캐릭터 이름을 먼저 설정해주세요.');
-        return;
-      }
-
-      if (!confirm('새로운 퀘스트를 생성하시겠습니까? (개발자 전용)')) return;
-
-      await api.generateQuests(settings.characterName);
-      alert('퀘스트가 생성되었습니다. 불러오기 버튼을 눌러주세요.');
-      
-    } catch (error) {
-      console.error('Error generating quests:', error);
-      alert('퀘스트 생성에 실패했습니다.');
-    }
-  };
-
-  return (
-    <Button 
-      onClick={handleGenerateQuest}
-      size="lg"
-      variant="outline"
-      className="w-full mt-2"
-    >
-      퀘스트 생성하기 (개발자 전용)
-    </Button>
-  );
-};
-
-export const CreateQuestButton = () => {
-  return (
-    <Button 
-      size="lg"
-      variant="outline"
-      className="w-full"
-    >
-      <Book className="mr-2 h-4 w-4" />
-      퀘스트 만들기
-    </Button>
   );
 };
 
@@ -1393,31 +711,6 @@ const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
 CardFooter.displayName = "CardFooter"
 
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
-
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ui\checkbox.jsx
-
-import * as React from "react"
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check } from "lucide-react"
-import { cn } from "@/lib/utils"
-
-const Checkbox = React.forwardRef(({ className, ...props }, ref) => (
-  <CheckboxPrimitive.Root
-    ref={ref}
-    className={cn(
-      "peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
-      className
-    )}
-    {...props}
-  >
-    <CheckboxPrimitive.Indicator className={cn("flex items-center justify-center text-current")}>
-      <Check className="h-4 w-4" />
-    </CheckboxPrimitive.Indicator>
-  </CheckboxPrimitive.Root>
-))
-Checkbox.displayName = CheckboxPrimitive.Root.displayName
-
-export { Checkbox }
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ui\dialog.jsx
 
@@ -1523,31 +816,8 @@ export {
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\lib\api.js
 
 const API_URL = import.meta.env.VITE_API_URL;
-console.log('Current API URL:', API_URL);
 
 export const api = {
-  generateQuests: async (characterName) => {
-    const response = await fetch(`${API_URL}/quests/generate/${encodeURIComponent(characterName)}`);
-    if (!response.ok) throw new Error('Failed to generate quests');
-    return response.json();
-  },
-
-  getQuests: async (characterName) => {
-    const response = await fetch(`${API_URL}/quests/${encodeURIComponent(characterName)}`);
-    if (!response.ok) throw new Error('Failed to fetch quests');
-    return response.json();
-  },
-
-  completeQuest: async (characterName, questData) => {
-    const response = await fetch(`${API_URL}/quests/complete/${encodeURIComponent(characterName)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(questData)
-    });
-    if (!response.ok) throw new Error('Failed to complete quest');
-    return response.json();
-  },
-
   createCharacter: async (settings) => {
     const response = await fetch(`${API_URL}/character/create`, {
       method: 'POST',
@@ -1558,33 +828,32 @@ export const api = {
     return response.json();
   },
 
-  getDailyWrapUp: async (characterName, date) => {
-    const response = await fetch(`${API_URL}/daily/wrap-up/${encodeURIComponent(characterName)}`, {
+  generateTimeline: async (characterName, activities) => {
+    const response = await fetch(`${API_URL}/timeline/generate/${encodeURIComponent(characterName)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date })
+      body: JSON.stringify({ activities })
     });
-    if (!response.ok) throw new Error('Failed to get daily wrap-up');
+    if (!response.ok) throw new Error('Failed to generate timeline');
     return response.json();
   },
 
-  updateCharacter: async (characterData) => {
-    const response = await fetch(`${API_URL}/character/update/${encodeURIComponent(characterData.characterName)}`, {
+  generateQuestions: async (characterName) => {
+    const response = await fetch(`${API_URL}/questions/generate/${encodeURIComponent(characterName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error('Failed to generate questions');
+    return response.json();
+  },
+
+  updateCharacter: async (characterName, characterData) => {
+    const response = await fetch(`${API_URL}/character/update/${encodeURIComponent(characterName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(characterData)
     });
     if (!response.ok) throw new Error('Failed to update character');
-    return response.json();
-  },
-
-  deleteQuests: async (characterName, questIds) => {
-    const response = await fetch(`${API_URL}/quests/delete/${encodeURIComponent(characterName)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questIds })
-    });
-    if (!response.ok) throw new Error('Failed to delete quests');
     return response.json();
   }
 };
