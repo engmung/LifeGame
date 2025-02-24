@@ -12,6 +12,7 @@ export const UserSettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
     notionApiKey: '',
     notionPageUrl: '',
+    geminiApiKey: '',  // Gemini API key 추가
     characterName: '',
     mbti: '',
     goals: '',

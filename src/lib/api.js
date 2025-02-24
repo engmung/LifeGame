@@ -1,13 +1,23 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const api = {
-  createCharacter: async (settings) => {
-    const response = await fetch(`${API_URL}/character/create`, {
+  checkUser: async (settings) => {
+    const response = await fetch(`${API_URL}/user/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     });
-    if (!response.ok) throw new Error('Failed to create character');
+    if (!response.ok) throw new Error('Failed to check user');
+    return response.json();
+  },
+
+  createUser: async (settings) => {
+    const response = await fetch(`${API_URL}/user/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    if (!response.ok) throw new Error('Failed to create user');
     return response.json();
   },
 
@@ -27,16 +37,6 @@ export const api = {
       headers: { 'Content-Type': 'application/json' }
     });
     if (!response.ok) throw new Error('Failed to generate questions');
-    return response.json();
-  },
-
-  updateCharacter: async (characterName, characterData) => {
-    const response = await fetch(`${API_URL}/character/update/${encodeURIComponent(characterName)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(characterData)
-    });
-    if (!response.ok) throw new Error('Failed to update character');
     return response.json();
   }
 };

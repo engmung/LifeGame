@@ -13,20 +13,19 @@ File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\App.jsx
 import React from 'react';
 import { UserSettingsProvider } from './components/UserContext';
 import { ActivityProvider } from './components/ActivityContext';
-import { CharacterSettingsDialog } from './components/CharacterSettingsDialog';
+import { SettingsDialog } from './components/SettingsDialog';
 import { ActivityList } from './components/ActivityList';
 import { CreateActivityButton } from './components/CreateActivityButton';
 import { GenerateTimelineButton } from './components/GenerateTimelineButton';
 import { GenerateQuestionsButton } from './components/GenerateQuestionsButton';
 
-// Main App component
 const App = () => {
   return (
     <UserSettingsProvider>
       <ActivityProvider>
         <div className="min-h-screen bg-gray-100 p-4">
           <div className="fixed top-4 right-4 flex gap-2">
-            <CharacterSettingsDialog />
+            <SettingsDialog />
             <GenerateTimelineButton />
             <GenerateQuestionsButton />
           </div>
@@ -127,14 +126,37 @@ export const ActivityProvider = ({ children }) => {
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\ActivityList.jsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, Edit } from 'lucide-react';
 import { useActivities } from './ActivityContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export const ActivityList = () => {
-  const { activities, deleteActivity } = useActivities();
+  const { activities, deleteActivity, updateActivity } = useActivities();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingActivity, setEditingActivity] = useState(null);
+
+  const handleEditClick = (activity) => {
+    setIsEditing(true);
+    setEditingActivity({...activity });
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditingActivity(prev => ({...prev, [field]: value }));
+  };
+
+  const handleSaveEdit = () => {
+    updateActivity(editingActivity.id, editingActivity);
+    setIsEditing(false);
+    setEditingActivity(null);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingActivity(null);
+  };
 
   if (activities.length === 0) {
     return (
@@ -144,9 +166,23 @@ export const ActivityList = () => {
     );
   }
 
+  // 현재 날짜 기준으로 시간 값을 Date 객체로 변환하는 함수
+  const getTimeAsDate = (timeStr) => {
+    const today = new Date();
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+  };
+
+  // 활동 종료 시간을 기준으로 내림차순 정렬
+  const sortedActivities = [...activities].sort((a, b) => {
+    const aTime = getTimeAsDate(a.endTime);
+    const bTime = getTimeAsDate(b.endTime);
+    return bTime - aTime;  // 내림차순 정렬 (최신순)
+  });
+
   return (
     <div className="mt-8 space-y-4">
-      {activities.map((activity) => (
+      {sortedActivities.map((activity) => (
         <Card key={activity.id}>
           <CardContent className="p-4">
             <div className="flex justify-between items-start">
@@ -157,11 +193,11 @@ export const ActivityList = () => {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={() => {/* TODO: Edit */}}>
+                <Button variant="ghost" size="icon" onClick={() => handleEditClick(activity)}>
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="icon"
                   onClick={() => deleteActivity(activity.id)}
                 >
@@ -171,162 +207,65 @@ export const ActivityList = () => {
             </div>
             {activity.thoughts && (
               <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
-                {activity.thoughts}
+                <p>{activity.thoughts}</p>
               </div>
             )}
           </CardContent>
         </Card>
       ))}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>활동 수정</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">활동명</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded"
+                value={editingActivity?.title || ''}
+                onChange={(e) => handleEditChange('title', e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">시작 시간</label>
+                <input
+                  type="time"
+                  className="w-full p-2 border rounded"
+                  value={editingActivity?.startTime || ''}
+                  onChange={(e) => handleEditChange('startTime', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">종료 시간</label>
+                <input
+                  type="time"
+                  className="w-full p-2 border rounded"
+                  value={editingActivity?.endTime || ''}
+                  onChange={(e) => handleEditChange('endTime', e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">생각 / 감정</label>
+              <textarea
+                className="w-full p-2 border rounded min-h-[100px]"
+                value={editingActivity?.thoughts || ''}
+                onChange={(e) => handleEditChange('thoughts', e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={handleCancelEdit}>취소</Button>
+              <Button onClick={handleSaveEdit}>저장</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
-
-File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CharacterSettingsDialog.jsx
-
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { User } from 'lucide-react';
-import { useUserSettings } from './UserContext'; // 수정된 임포트
-import { api } from '@/lib/api';
-
-export const CharacterSettingsDialog = () => {
-  const { settings, updateSettings } = useUserSettings();
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [activeTab, setActiveTab] = useState('character'); // 'character' or 'notion'
-  
-  const MBTI_TYPES = [
-    'INTJ', 'INTP', 'ENTJ', 'ENTP',
-    'INFJ', 'INFP', 'ENFJ', 'ENFP',
-    'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
-    'ISTP', 'ISFP', 'ESTP', 'ESFP'
-  ];
-
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
-
-  const handleSave = async () => {
-    try {
-      if (!localSettings.characterName || !localSettings.mbti) {
-        alert('캐릭터 이름과 MBTI는 필수입니다.');
-        return;
-      }
-      if (!localSettings.notionApiKey || !localSettings.notionPageUrl) {
-        alert('Notion API Key와 Page URL은 필수입니다.');
-        return;
-      }
-
-      const response = await api.createCharacter(localSettings);
-      updateSettings(localSettings);
-      alert('설정이 저장되었습니다.');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('설정 저장에 실패했습니다.');
-    }
-  };
-
-  const renderCharacterTab = () => (
-    <div className="space-y-4">
-      <div className="grid gap-2">
-        <label>Character Name (ID)</label>
-        <input 
-          type="text"
-          className="border p-2 rounded"
-          value={localSettings.characterName || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, characterName: e.target.value })}
-        />
-      </div>
-      <div className="grid gap-2">
-        <label>MBTI</label>
-        <select 
-          className="border p-2 rounded"
-          value={localSettings.mbti || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, mbti: e.target.value })}
-        >
-          <option value="">Select MBTI</option>
-          {MBTI_TYPES.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-      </div>
-      <div className="grid gap-2">
-        <label>Goals</label>
-        <textarea
-          className="border p-2 rounded min-h-[80px]"
-          value={localSettings.goals || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, goals: e.target.value })}
-          placeholder="What are your goals?"
-        />
-      </div>
-      <div className="grid gap-2">
-        <label>Preferences</label>
-        <textarea
-          className="border p-2 rounded min-h-[80px]"
-          value={localSettings.preferences || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, preferences: e.target.value })}
-          placeholder="What are your preferences?"
-        />
-      </div>
-    </div>
-  );
-
-  const renderNotionTab = () => (
-    <div className="space-y-4">
-      <div className="grid gap-2">
-        <label>Notion API Key</label>
-        <input 
-          type="password"
-          className="border p-2 rounded"
-          value={localSettings.notionApiKey || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, notionApiKey: e.target.value })}
-        />
-      </div>
-      <div className="grid gap-2">
-        <label>Notion Page URL</label>
-        <input 
-          type="text"
-          className="border p-2 rounded"
-          value={localSettings.notionPageUrl || ''}
-          onChange={(e) => setLocalSettings({ ...localSettings, notionPageUrl: e.target.value })}
-        />
-      </div>
-    </div>
-  );
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="fixed top-4 left-4">
-          <User className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[90vw] sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Character Settings</DialogTitle>
-        </DialogHeader>
-        <div className="flex space-x-4 border-b mb-4">
-          <button
-            className={`py-2 px-4 ${activeTab === 'character' ? 'border-b-2 border-blue-500' : ''}`}
-            onClick={() => setActiveTab('character')}
-          >
-            Character
-          </button>
-          <button
-            className={`py-2 px-4 ${activeTab === 'notion' ? 'border-b-2 border-blue-500' : ''}`}
-            onClick={() => setActiveTab('notion')}
-          >
-            Notion Settings
-          </button>
-        </div>
-        {activeTab === 'character' ? renderCharacterTab() : renderNotionTab()}
-        <Button onClick={handleSave} className="mt-4">Save All Settings</Button>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default CharacterSettingsDialog;
 
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\CreateActivityButton.jsx
 
@@ -576,6 +515,170 @@ export const GenerateTimelineButton = () => {
   );
 };
 
+File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\SettingsDialog.jsx
+
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
+import { useUserSettings } from './UserContext';
+import { api } from '@/lib/api';
+
+export const SettingsDialog = () => {
+  const { settings, updateSettings } = useUserSettings();
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [activeTab, setActiveTab] = useState('user');
+  
+  const MBTI_TYPES = [
+    'INTJ', 'INTP', 'ENTJ', 'ENTP',
+    'INFJ', 'INFP', 'ENFJ', 'ENFP',
+    'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ',
+    'ISTP', 'ISFP', 'ESTP', 'ESFP'
+  ];
+
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
+
+  const handleSave = async () => {
+    try {
+      if (!localSettings.characterName || !localSettings.mbti) {
+        alert('사용자 이름과 MBTI는 필수입니다.');
+        return;
+      }
+      if (!localSettings.notionApiKey || !localSettings.notionPageUrl) {
+        alert('Notion API Key와 Page URL은 필수입니다.');
+        return;
+      }
+      if (!localSettings.geminiApiKey) {
+        alert('Google Gemini API Key는 필수입니다.');
+        return;
+      }
+
+      const response = await api.createUser(localSettings);
+      updateSettings(localSettings);
+      alert('설정이 저장되었습니다.');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('설정 저장에 실패했습니다.');
+    }
+  };
+
+  const renderUserTab = () => (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <label>사용자 이름</label>
+        <input 
+          type="text"
+          className="border p-2 rounded"
+          value={localSettings.characterName || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, characterName: e.target.value })}
+        />
+      </div>
+      <div className="grid gap-2">
+        <label>MBTI</label>
+        <select 
+          className="border p-2 rounded"
+          value={localSettings.mbti || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, mbti: e.target.value })}
+        >
+          <option value="">Select MBTI</option>
+          {MBTI_TYPES.map(type => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid gap-2">
+        <label>목표</label>
+        <textarea
+          className="border p-2 rounded min-h-[80px]"
+          value={localSettings.goals || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, goals: e.target.value })}
+          placeholder="당신의 목표는 무엇인가요?"
+        />
+      </div>
+      <div className="grid gap-2">
+        <label>선호도</label>
+        <textarea
+          className="border p-2 rounded min-h-[80px]"
+          value={localSettings.preferences || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, preferences: e.target.value })}
+          placeholder="선호하는 활동이나 방식은 무엇인가요?"
+        />
+      </div>
+    </div>
+  );
+
+  const renderAPITab = () => (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <label>Notion API Key</label>
+        <input 
+          type="password"
+          className="border p-2 rounded"
+          value={localSettings.notionApiKey || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, notionApiKey: e.target.value })}
+        />
+      </div>
+      <div className="grid gap-2">
+        <label>Notion Page URL</label>
+        <input 
+          type="text"
+          className="border p-2 rounded"
+          value={localSettings.notionPageUrl || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, notionPageUrl: e.target.value })}
+        />
+      </div>
+      <div className="grid gap-2">
+        <label>Google Gemini API Key</label>
+        <input 
+          type="password"
+          className="border p-2 rounded"
+          value={localSettings.geminiApiKey || ''}
+          onChange={(e) => setLocalSettings({ ...localSettings, geminiApiKey: e.target.value })}
+        />
+        <p className="text-sm text-gray-500">
+          Visit Google AI Studio to get your API key: 
+          <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 ml-1">
+            Get API Key
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="fixed top-4 left-4">
+          <Settings className="h-6 w-6" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-[90vw] sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>설정</DialogTitle>
+        </DialogHeader>
+        <div className="flex space-x-4 border-b mb-4">
+          <button
+            className={`py-2 px-4 ${activeTab === 'user' ? 'border-b-2 border-blue-500' : ''}`}
+            onClick={() => setActiveTab('user')}
+          >
+            사용자
+          </button>
+          <button
+            className={`py-2 px-4 ${activeTab === 'api' ? 'border-b-2 border-blue-500' : ''}`}
+            onClick={() => setActiveTab('api')}
+          >
+            API 설정
+          </button>
+        </div>
+        {activeTab === 'user' ? renderUserTab() : renderAPITab()}
+        <Button onClick={handleSave} className="mt-4">모든 설정 저장</Button>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\components\UserContext.jsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -592,6 +695,7 @@ export const UserSettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
     notionApiKey: '',
     notionPageUrl: '',
+    geminiApiKey: '',  // Gemini API key 추가
     characterName: '',
     mbti: '',
     goals: '',
@@ -818,13 +922,14 @@ File: C:\Users\사용자\Desktop\2024\25_1분기\Ai Agent\quest-app\src\lib\api.
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const api = {
-  createCharacter: async (settings) => {
-    const response = await fetch(`${API_URL}/character/create`, {
+  // createCharacter를 createUser로 변경
+  createUser: async (settings) => {
+    const response = await fetch(`${API_URL}/user/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
     });
-    if (!response.ok) throw new Error('Failed to create character');
+    if (!response.ok) throw new Error('Failed to create user');
     return response.json();
   },
 
@@ -844,16 +949,6 @@ export const api = {
       headers: { 'Content-Type': 'application/json' }
     });
     if (!response.ok) throw new Error('Failed to generate questions');
-    return response.json();
-  },
-
-  updateCharacter: async (characterName, characterData) => {
-    const response = await fetch(`${API_URL}/character/update/${encodeURIComponent(characterName)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(characterData)
-    });
-    if (!response.ok) throw new Error('Failed to update character');
     return response.json();
   }
 };
