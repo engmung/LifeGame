@@ -27,7 +27,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ activities })
     });
-    if (!response.ok) throw new Error('Failed to generate timeline');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || 'Failed to generate timeline');
+      error.response = response;
+      throw error;
+    }
     return response.json();
   },
 
@@ -36,7 +41,20 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!response.ok) throw new Error('Failed to generate questions');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || 'Failed to generate questions');
+      error.response = response;
+      throw error;
+    }
+    return response.json();
+  },
+
+  getUserStatus: async (characterName) => {
+    const response = await fetch(`${API_URL}/user/status/${encodeURIComponent(characterName)}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error('Failed to get user status');
     return response.json();
   }
 };

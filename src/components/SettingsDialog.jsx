@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Settings, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, ExternalLink, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { useUserSettings } from './UserContext';
 import { api } from '@/lib/api';
 
@@ -13,6 +13,7 @@ export const SettingsDialog = () => {
   const [existingUserData, setExistingUserData] = useState(null);
   const [showNotionGuide, setShowNotionGuide] = useState(false);
   const [showGeminiGuide, setShowGeminiGuide] = useState(false);
+  const [accountStatus, setAccountStatus] = useState(null);
   
   const MBTI_TYPES = [
     'INTJ', 'INTP', 'ENTJ', 'ENTP',
@@ -23,6 +24,22 @@ export const SettingsDialog = () => {
 
   useEffect(() => {
     setLocalSettings(settings);
+    
+    // 사용자 상태 확인
+    const checkUserStatus = async () => {
+      if (settings.characterName) {
+        try {
+          const response = await api.getUserStatus(settings.characterName);
+          if (response.status === 'success' && response.data) {
+            setAccountStatus(response.data.status || 'Inactive');
+          }
+        } catch (error) {
+          console.error('Error fetching user status:', error);
+        }
+      }
+    };
+    
+    checkUserStatus();
   }, [settings]);
 
   const handleSave = async () => {
@@ -50,7 +67,15 @@ export const SettingsDialog = () => {
 
       const response = await api.createUser(localSettings);
       updateSettings(localSettings);
-      alert('설정이 저장되었습니다.');
+      
+      // 계정 상태 업데이트
+      if (response.status === 'success') {
+        setAccountStatus('Inactive');
+        alert('설정이 저장되었습니다. 관리자 승인 후 활동 기록 및 질문 생성이 가능합니다.');
+      } else {
+        alert('설정이 저장되었습니다.');
+      }
+      
       setShowConfirmation(false);
       
     } catch (error) {
@@ -67,6 +92,9 @@ export const SettingsDialog = () => {
           confirmUpdate: true
         });
         updateSettings(localSettings);
+        
+        // 상태 업데이트
+        setAccountStatus(response.data?.status || 'Inactive');
         alert('설정이 업데이트되었습니다.');
       } catch (error) {
         console.error('Error:', error);
@@ -78,6 +106,22 @@ export const SettingsDialog = () => {
 
   const renderUserTab = () => (
     <div className="space-y-4">
+      {accountStatus && (
+        <div className={`p-3 rounded-lg flex items-center gap-2 ${
+          accountStatus === 'Active' 
+            ? 'bg-green-50 text-green-700' 
+            : 'bg-amber-50 text-amber-700'
+        }`}>
+          <AlertCircle className="h-5 w-5" />
+          <span>
+            계정 상태: <strong>{accountStatus === 'Active' ? '활성화됨' : '비활성화됨'}</strong>
+            {accountStatus !== 'Active' && (
+              <span className="block text-xs mt-1">관리자 승인 후 활동 기록 및 질문 생성이 가능합니다.</span>
+            )}
+          </span>
+        </div>
+      )}
+      
       <div className="grid gap-2">
         <label>사용자 이름</label>
         <input 

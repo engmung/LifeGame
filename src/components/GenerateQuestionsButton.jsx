@@ -26,7 +26,13 @@ export const GenerateQuestionsButton = () => {
       }
     } catch (error) {
       console.error('Error generating questions:', error);
-      alert('질문 생성에 실패했습니다.');
+      
+      // 비활성화된 계정 오류 처리
+      if (error.response && error.response.status === 403) {
+        alert('계정이 아직 활성화되지 않았습니다. 관리자의 승인을 기다려주세요.');
+      } else {
+        alert('질문 생성에 실패했습니다.');
+      }
     } finally {
       setIsGenerating(false);
     }
