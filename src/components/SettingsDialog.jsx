@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Settings, ExternalLink, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { Settings, ExternalLink, ChevronDown, ChevronUp, AlertCircle, Loader2 } from 'lucide-react';
 import { useUserSettings } from './UserContext';
 import { api } from '@/lib/api';
 
@@ -14,6 +14,7 @@ export const SettingsDialog = () => {
   const [showNotionGuide, setShowNotionGuide] = useState(false);
   const [showGeminiGuide, setShowGeminiGuide] = useState(false);
   const [accountStatus, setAccountStatus] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const MBTI_TYPES = [
     'INTJ', 'INTP', 'ENTJ', 'ENTP',
@@ -56,15 +57,19 @@ export const SettingsDialog = () => {
         alert('Google Gemini API Key는 필수입니다.');
         return;
       }
-
+  
+      // 로딩 상태 활성화
+      setIsSaving(true);
+  
       const checkResponse = await api.checkUser(localSettings);
       
       if (checkResponse.status === 'exists') {
         setExistingUserData(checkResponse.data);
         setShowConfirmation(true);
+        setIsSaving(false); // 로딩 상태 비활성화
         return;
       }
-
+  
       const response = await api.createUser(localSettings);
       updateSettings(localSettings);
       
@@ -81,12 +86,18 @@ export const SettingsDialog = () => {
     } catch (error) {
       console.error('Error:', error);
       alert('설정 저장에 실패했습니다.');
+    } finally {
+      // 로딩 상태 비활성화
+      setIsSaving(false);
     }
   };
 
   const handleConfirm = async (confirmed) => {
     if (confirmed) {
       try {
+        // 로딩 상태 활성화
+        setIsSaving(true);
+  
         const response = await api.createUser({
           ...localSettings,
           confirmUpdate: true
@@ -96,12 +107,24 @@ export const SettingsDialog = () => {
         // 상태 업데이트
         setAccountStatus(response.data?.status || 'Inactive');
         alert('설정이 업데이트되었습니다.');
+        
+        // 확인 대화상자 닫고 설정창으로 돌아가기
+        setShowConfirmation(false);
       } catch (error) {
         console.error('Error:', error);
         alert('설정 업데이트에 실패했습니다.');
+        // 오류가 발생해도 확인 대화상자 닫기
+        setShowConfirmation(false);
+      } finally {
+        // 로딩 상태 비활성화
+        setIsSaving(false);
       }
+    } else {
+      // 사용자가 "아니오"를 선택한 경우 - 확인 대화상자만 닫음
+      setShowConfirmation(false);
+      // 사용자 이름을 변경하라는 메시지 표시
+      alert('다른 사용자 이름으로 등록해 주세요.');
     }
-    setShowConfirmation(false);
   };
 
   const renderUserTab = () => (
@@ -280,9 +303,9 @@ export const SettingsDialog = () => {
         
         {showConfirmation ? (
           <div className="space-y-4">
-            <p>이미 등록된 사용자 이름입니다.</p>
+            <p className="font-medium text-amber-600">이미 등록된 사용자 이름입니다.</p>
             <p>
-              기존 노션 페이지: 
+              노션 페이지: 
               <a 
                 href={existingUserData?.notionUrl} 
                 target="_blank" 
@@ -292,10 +315,34 @@ export const SettingsDialog = () => {
                 링크
               </a>
             </p>
-            <p>본인이며, 설정을 업데이트하시겠습니까?</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => handleConfirm(false)}>취소</Button>
-              <Button onClick={() => handleConfirm(true)}>업데이트</Button>
+            <div className="bg-amber-50 p-3 rounded border border-amber-200">
+              <p className="text-amber-700 mb-2">정말 본인의 계정이 맞습니까?</p>
+              <p className="text-sm text-gray-600">
+                본인이 맞다면 '예'를 선택하여 정보를 업데이트할 수 있습니다. 
+                다른 사람의 계정이라면 '아니오'를 선택하여 다른 사용자 이름으로 등록해 주세요.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => handleConfirm(false)}
+                disabled={isSaving}
+              >
+                아니오, 다른 이름으로 등록할게요
+              </Button>
+              <Button 
+                onClick={() => handleConfirm(true)}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    처리중...
+                  </>
+                ) : (
+                  '예, 내 계정입니다'
+                )}
+              </Button>
             </div>
           </div>
         ) : (
@@ -315,8 +362,19 @@ export const SettingsDialog = () => {
               </button>
             </div>
             {activeTab === 'user' ? renderUserTab() : renderAPITab()}
-            <Button onClick={handleSave} className="mt-4 w-full">
-              모든 설정 저장
+            <Button 
+              onClick={handleSave} 
+              className="mt-4 w-full"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                '모든 설정 저장'
+              )}
             </Button>
           </>
         )}

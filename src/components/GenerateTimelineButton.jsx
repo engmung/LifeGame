@@ -36,11 +36,26 @@ export const GenerateTimelineButton = () => {
     } catch (error) {
       console.error('Error generating timeline:', error);
       
-      // 비활성화된 계정 오류 처리
-      if (error.response && error.response.status === 403) {
-        alert('계정이 아직 활성화되지 않았습니다. 관리자의 승인을 기다려주세요.');
+      // 오류 응답 분석
+      if (error.response) {
+        const status = error.response.status;
+        const detail = error.response.data?.detail || '';
+        
+        // 비활성화된 계정 오류 처리
+        if (status === 403 || (detail && detail.includes('not active'))) {
+          const discordLink = "https://discord.gg/aszh8Yh9"; // 디스코드 서버 초대 링크로 변경
+          const confirmMessage = `계정이 아직 활성화되지 않았습니다.\n\n관리자의 승인이 필요합니다. 디스코드에서 관리자에게 연락하여 승인을 요청하시겠습니까?\n\n사용자 이름: ${settings.characterName}`;
+          
+          if (confirm(confirmMessage)) {
+            window.open(discordLink, '_blank');
+          }
+        } else {
+          // 기타 오류 처리
+          alert(`타임라인 생성에 실패했습니다.\n\n${detail || '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'}`);
+        }
       } else {
-        alert('타임라인 생성에 실패했습니다.');
+        // 기타 예상치 못한 오류
+        alert(`타임라인 생성에 실패했습니다.\n\n${error.message || '알 수 없는 오류가 발생했습니다.'}`);
       }
     } finally {
       setIsGenerating(false);
