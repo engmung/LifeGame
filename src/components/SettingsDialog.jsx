@@ -85,7 +85,9 @@ export const SettingsDialog = () => {
       
     } catch (error) {
       console.error('Error:', error);
-      alert('설정 저장에 실패했습니다.');
+      
+      // 항상 노션 통합 오류로 간주하고 명확한 메시지 표시
+      alert('노션 페이지에 API가 연결되지 않았습니다.\n노션 페이지에서 우측 상단 ...과 연결을 통해 연결해주세요. \n\n문제가 계속 발생시, 디스코드로 연락주세요.');
     } finally {
       // 로딩 상태 비활성화
       setIsSaving(false);
