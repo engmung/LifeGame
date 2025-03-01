@@ -72,8 +72,6 @@ export const GenerateQuestionsButton = () => {
             <p className="text-center">
               AI가 일기를 분석하고 성찰 질문을 생성하고 있습니다.<br/>
               이 과정은 약 30초 정도 소요됩니다.<br/>
-              다른분과 요청이 겹치면 더 지연될 수 있습니다.<br/>
-              이부분은 최대한 빨리 개선해 볼게요!
             </p>
           </div>
         </DialogContent>
