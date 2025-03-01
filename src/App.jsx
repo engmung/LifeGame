@@ -6,6 +6,7 @@ import { ActivityList } from './components/ActivityList';
 import { CreateActivityButton } from './components/CreateActivityButton';
 import { GenerateTimelineButton } from './components/GenerateTimelineButton';
 import { GenerateQuestionsButton } from './components/GenerateQuestionsButton';
+import { Analytics } from "@vercel/analytics/react"
 
 const App = () => {
   return (
@@ -22,6 +23,7 @@ const App = () => {
             <ActivityList />
           </div>
         </div>
+        <Analytics />
       </ActivityProvider>
     </UserSettingsProvider>
   );
